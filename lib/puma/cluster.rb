@@ -226,9 +226,16 @@ module Puma
       # during this loop by giving the kernel time to kill them.
       sleep 1 if any
 
-      @workers.reject! { |w| Process.waitpid(w.pid, Process::WNOHANG) }
-
-      @workers.reject!(&:dead?)
+      @workers.reject! do |w|
+        log "#{Time.now.to_f} Checking PID #{w.pid}..."
+        wait_result = Process.waitpid(w.pid, Process::WNOHANG)
+        wait_any_result = Process.waitpid(-1, Process::WNOHANG)
+        dead_result = w.dead?
+        log "  waitpid(#{w.pid}) - #{wait_result || 'nil'}"
+        log "  waitpid(-1)    - #{wait_any_result || 'nil'}"
+        log "  w.dead?        - #{dead_result}"
+        wait_result || dead_result
+      end
 
       cull_workers
       spawn_workers
